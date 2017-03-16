@@ -1,0 +1,10 @@
+/local/*
+/.Rproj.user/*
+.Rhistory
+.Rproj.user
+.RData
+.sync/*
+*.Rproj
+*.pyc
+*.docx
+xxx*.*

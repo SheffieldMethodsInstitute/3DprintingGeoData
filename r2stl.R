@@ -55,10 +55,10 @@ r2stl(
   x = 1:nrow(ethRaster), 
   y = 1:ncol(ethRaster), 
   #z = ifelse(is.na(getValues(ethRaster)),0,getValues(ethRaster)),
-  z = zed,
+  z = zed/2,
   z.expand = F,
   show.persp = F,
-  filename= 'stl/shefNonWhite_centre.stl'
+  filename= 'stl/shefNonWhite_centre2.stl'
 )
 
 

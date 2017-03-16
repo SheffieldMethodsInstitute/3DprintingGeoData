@@ -31,9 +31,15 @@ hist(eth$nonwhiteZoneProp)
 #merge with geography - keep only the column we want for now.
 eth_geo <- merge(oas[,c('code')], eth[,c('geography','nonwhiteZoneProp')], by.x = 'code', by.y = 'geography')
 
+#Drop some of the outlying OAs to get a better look at the centre
+#These are the ones to drop
+dropz <- readOGR('data/boundarydata','sheffield_oa_2011_westEnd')
+
+eth_geo <- eth_geo[!(eth_geo$code %in% dropz$code),]
+
 #Everything's in British National Grid, so divided by number of metres per grid square we want
-width <- (xmax(eth_geo)-xmin(eth_geo))/500
-height <- (ymax(eth_geo)-ymin(eth_geo))/500
+width <- (xmax(eth_geo)-xmin(eth_geo))/100
+height <- (ymax(eth_geo)-ymin(eth_geo))/100
 
 r <- raster(ncols = width, nrows = height)
 proj4string(r) <- proj4string(eth_geo)
@@ -55,8 +61,6 @@ r2stl(
   filename= 'stl/shefNonWhite1.stl'
 )
 
-
-as.matrix(ethRaster) %>% length
 
 
 

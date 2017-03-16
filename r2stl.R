@@ -32,8 +32,8 @@ hist(eth$nonwhiteZoneProp)
 eth_geo <- merge(oas[,c('code')], eth[,c('geography','nonwhiteZoneProp')], by.x = 'code', by.y = 'geography')
 
 #Everything's in British National Grid, so divided by number of metres per grid square we want
-width <- (xmax(eth_geo)-xmin(eth_geo))/100
-height <- (ymax(eth_geo)-ymin(eth_geo))/100
+width <- (xmax(eth_geo)-xmin(eth_geo))/500
+height <- (ymax(eth_geo)-ymin(eth_geo))/500
 
 r <- raster(ncols = width, nrows = height)
 proj4string(r) <- proj4string(eth_geo)
@@ -42,14 +42,24 @@ extent(r) <- extent(eth_geo)
 ethRaster <- rasterize(eth_geo,r,eth_geo$nonwhiteZoneProp)
 plot(ethRaster)
 
-stl <- r2stl(
+zed <- as.matrix(ethRaster)
+zed[is.na(zed)] <- 0
+
+r2stl(
   x = 1:nrow(ethRaster), 
   y = 1:ncol(ethRaster), 
   #z = ifelse(is.na(getValues(ethRaster)),0,getValues(ethRaster)),
-  z = as.matrix(ethRaster),
+  z = zed,
   z.expand = T,
+  show.persp = F,
   filename= 'stl/shefNonWhite1.stl'
 )
+
+
+as.matrix(ethRaster) %>% length
+
+
+
 
 
 

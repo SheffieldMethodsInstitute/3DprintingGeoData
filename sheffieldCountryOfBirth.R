@@ -58,6 +58,48 @@ r2stl_geo(
   filename= 'stl/nonUKbornSheffield.stl'
 )
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#COB LSOA level----
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+cob <- read_csv('data/countryOfBirth_Y&H_LSOA.csv')
+
+lsoas <- readOGR('data/boundarydata','sheffield_lsoa_2011_MinuswestEnd')
+plot(lsoas, col='red')
+
+#check OA match. Tick.
+table(lsoas$code %in% cob$LSOA11CD)
+
+#Subset to Sheffield
+cob <- cob[cob$LSOA11CD %in% lsoas$code,]
+
+#tidy to make easier to read
+names(cob) <- gsub('; measures: Value','', names(cob))
+
+#non-white is just 'all categories' minus UK (include all UK)
+cob$nonUK <- cob$`Country of Birth: All categories: Country of birth` - 
+  (cob$`Country of Birth: Europe: United Kingdom: Total` +
+     cob$`Country of Birth: Europe: Great Britain not otherwise specified` +
+     cob$`Country of Birth: Europe: United Kingdom not otherwise specified`)
+
+#as % of zone pop
+cob$nonUKZoneProp <- (cob$nonUK/cob$`Country of Birth: All categories: Country of birth`)*100
+hist(cob$nonUKZoneProp)
+
+#merge with geography - keep only the column we want for now.
+cob_geo <- merge(lsoas[,c('code')], cob[,c('LSOA11CD','nonUKZoneProp')], by.x = 'code', by.y = 'LSOA11CD')
+
+r2stl_geo(
+  cob_geo,
+  'nonUKZoneProp',
+  gridResolution=50,
+  keepXYratio = T,
+  zRatio = 0.25,
+  show.persp = F,
+  filename= 'stl/shefCoBNonUKLSOA_50m.stl'
+)
+
+
 
 
 

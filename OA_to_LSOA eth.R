@@ -15,22 +15,20 @@ names(eth) <- gsub('; measures: Value','', names(eth))
 
 #non-white is just 'all categories' minus UK (include all UK)
 eth$nonwhite <- eth$`Ethnic Group: All usual residents`-eth$`Ethnic Group: White`
-
-#as % of zone pop
-eth$nonwhiteZoneProp.oa <- (eth$nonwhite/eth$`Ethnic Group: All usual residents`)*100
+eth$pstani<-eth$`Ethnic Group: Asian/Asian British: Pakistani` ##we just wanted a shorter name
 
 ##  merge the data
-eth.lsoa<-merge(x=oa,y=eth[,c('geography','nonwhite','nonwhiteZoneProp.oa','Ethnic Group: All usual residents')],by.x='OA11CD',by.y='geography')
+eth.lsoa<-merge(x=oa,y=eth[,c('geography','nonwhite','pstani','Ethnic Group: All usual residents')],by.x='OA11CD',by.y='geography')
 
 ## Use agrgegate to create lsoa stats
 names(eth.lsoa)
-lsoa.stats<-aggregate(eth.lsoa[,c('nonwhite','Ethnic Group: All usual residents')],
+lsoa.stats<-aggregate(eth.lsoa[,c('nonwhite','Ethnic Group: All usual residents','pstani')],
                       list(eth.lsoa$LSOA11CD),sum)
 names(lsoa.stats)<-paste(names(lsoa.stats),'lsoa',sep='.')
 names(lsoa.stats)
 
 ## Use agrgegate to create msoa stats
-msoa.stats<-aggregate(eth.lsoa[,c('nonwhite','Ethnic Group: All usual residents')],
+msoa.stats<-aggregate(eth.lsoa[,c('nonwhite','Ethnic Group: All usual residents','pstani')],
                       list(eth.lsoa$MSOA11CD),sum)
 names(msoa.stats)<-paste(names(msoa.stats),'msoa',sep='.')
 names(msoa.stats)
@@ -39,9 +37,16 @@ names(msoa.stats)
 ##  Append the lsoa and msoa stats to eth file 
 eth.lsoa<-merge(x=eth.lsoa,y=lsoa.stats,by.x='LSOA11CD',by.y='Group.1.lsoa')
 eth.lsoa<-merge(x=eth.lsoa,y=msoa.stats,by.x='MSOA11CD',by.y='Group.1.msoa')
-head(eth.lsoa)
+
+
+#as % of zone pop
+eth.lsoa$nonwhiteZoneProp.oa <- (eth.lsoa$nonwhite/eth.lsoa$`Ethnic Group: All usual residents`)*100
 eth.lsoa$nonwhiteZoneProp.lsoa <- (eth.lsoa$nonwhite.lsoa/eth.lsoa$`Ethnic Group: All usual residents.lsoa`)*100
 eth.lsoa$nonwhiteZoneProp.msoa <- (eth.lsoa$nonwhite.msoa/eth.lsoa$`Ethnic Group: All usual residents.msoa`)*100
+
+eth.lsoa$pstaniZoneProp.oa <- (eth.lsoa$pstani/eth.lsoa$`Ethnic Group: All usual residents`)*100
+eth.lsoa$pstaniZoneProp.lsoa <- (eth.lsoa$pstani.lsoa/eth.lsoa$`Ethnic Group: All usual residents.lsoa`)*100
+eth.lsoa$pstaniZoneProp.msoa <- (eth.lsoa$pstani.msoa/eth.lsoa$`Ethnic Group: All usual residents.msoa`)*100
 
 ##  Save it 
 write.csv(eth.lsoa,'data/eth lsoa msoa.csv')

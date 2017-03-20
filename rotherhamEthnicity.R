@@ -21,10 +21,12 @@ roth.id<-grep('Rotherham',eth$LSOA11NM)
 eth<-eth[roth.id,]
 
 #merge with geography - keep only the column we want for now.
-eth_geo <- merge(oas[,c('oa11cd')], eth[,c('OA11CD','nonwhiteZoneProp.oa','nonwhiteZoneProp.lsoa','nonwhiteZoneProp.msoa')], by.x = 'oa11cd', by.y = 'OA11CD')
+eth_geo <- merge(oas[,c('oa11cd')], eth[,c('OA11CD','nonwhiteZoneProp.oa','nonwhiteZoneProp.lsoa','nonwhiteZoneProp.msoa','pstaniZoneProp.oa','pstaniZoneProp.lsoa','pstaniZoneProp.msoa')], by.x = 'oa11cd', by.y = 'OA11CD')
 eth_geo
 
 ### Right so now to sort of use the r2stl stuff
+
+##  Non-whites
 r2stl_geo(
   eth_geo,
   'nonwhiteZoneProp.oa',
@@ -53,4 +55,35 @@ r2stl_geo(
   zRatio = 0.25,
   show.persp = F,
   filename= 'stl/nonwhiteRotherham_msoa.stl'
+)
+
+##  Pakistani pop
+r2stl_geo(
+  eth_geo,
+  'pstaniZoneProp.oa',
+  gridResolution=50,
+  keepXYratio = T,
+  zRatio = 0.25,
+  show.persp = F,
+  filename= 'stl/pstaniRotherham.stl'
+)
+
+r2stl_geo(
+  eth_geo,
+  'pstaniZoneProp.lsoa',
+  gridResolution=50,
+  keepXYratio = T,
+  zRatio = 0.25,
+  show.persp = F,
+  filename= 'stl/pstaniRotherham_lsoa.stl'
+)
+
+r2stl_geo(
+  eth_geo,
+  'pstaniZoneProp.msoa',
+  gridResolution=50,
+  keepXYratio = T,
+  zRatio = 0.25,
+  show.persp = F,
+  filename= 'stl/pstaniRotherham_msoa.stl'
 )

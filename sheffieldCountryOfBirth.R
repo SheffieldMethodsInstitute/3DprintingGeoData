@@ -21,6 +21,7 @@ source('r2stl/R/r2stl_geo.r')
 # writeOGR(oas,'data/boundarydata','sheffield_oa_2011_MinuswestEnd', driver="ESRI Shapefile", overwrite_layer=T)
 
 oas <- readOGR('data/boundarydata','sheffield_oa_2011_MinuswestEnd')
+plot(oas, col = 'red')
 
 #Get cob data
 cob <- read_csv('data/countryOfBirth_Yorkshire.csv')

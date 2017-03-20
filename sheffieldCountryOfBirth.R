@@ -11,11 +11,15 @@ source('r2stl/R/r2stl_geo.r')
 # #Drop rural west end OAs
 # dropz <- readOGR('data/boundarydata','sheffield_oa_2011_westEnd')
 # 
+# plot(dropz, col='red')
+# plot(oas, col = 'red')
+# 
 # oas <- oas[!(oas$code %in% dropz$code),]
-# plot(oas)
+# plot(oas, col = 'red')
 # 
 # #save that for later
-# writeOGR(oas,'data/boundarydata','sheffield_oa_2011_MinuswestEnd', driver="ESRI Shapefile")
+# writeOGR(oas,'data/boundarydata','sheffield_oa_2011_MinuswestEnd', driver="ESRI Shapefile", overwrite_layer=T)
+
 oas <- readOGR('data/boundarydata','sheffield_oa_2011_MinuswestEnd')
 
 #Get cob data

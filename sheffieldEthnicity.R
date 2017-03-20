@@ -49,7 +49,7 @@ r2stl_geo(
 
 
 
-
+plot(eth_geo)
 
 
 

@@ -10,51 +10,47 @@ source('r2stl/R/r2stl_geo.r')
 ##  Saving projection system and reprojecting the r.ham shp file
 osgb36<-("+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +datum=OSGB36 +units=m +no_defs +ellps=airy +towgs84=446.448,-125.157,542.060,0.1502,0.2470,0.8421,-20.4894")
 
-rotherham<-readOGR(dsn='data/boundarydata',layer='rotherham_oa_2011_noproj',p4s=osgb36)
+oas<-readOGR(dsn='data/boundarydata',layer='rotherham_oa_2011_noproj',p4s=osgb36)
 
-
-##  Saving projection system and reprojecting the r.ham shp file
-osgb36<-CRS("+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +datum=OSGB36 +units=m +no_defs +ellps=airy +towgs84=446.448,-125.157,542.060,0.1502,0.2470,0.8421,-20.4894")
-
-#Get cob data
-eth <- read_csv('data/ethnicity_Y&H.csv')
-
-
-#check OA match. Tick.
-table(oas$code %in% cob$geography)
-
-#Subset to Sheffield
-cob <- cob[cob$geography %in% oas$code,]
-
+#Get eth data
+eth <- read_csv('data/eth lsoa msoa.csv')
 #tidy to make easier to read
-names(cob) <- gsub('; measures: Value','', names(cob))
 
-#non-white is just 'all categories' minus UK (include all UK)
-cob$nonUK <- cob$`Country of Birth: All categories: Country of birth` - 
-  (cob$`Country of Birth: Europe: United Kingdom: Total` +
-     cob$`Country of Birth: Europe: Great Britain not otherwise specified` +
-     cob$`Country of Birth: Europe: United Kingdom not otherwise specified`)
-
-#as % of zone pop
-cob$nonUKZoneProp <- (cob$nonUK/cob$`Country of Birth: All categories: Country of birth`)*100
-hist(cob$nonUKZoneProp)
+#Subset to Rotherham
+roth.id<-grep('Rotherham',eth$LSOA11NM)
+eth<-eth[roth.id,]
 
 #merge with geography - keep only the column we want for now.
-cob_geo <- merge(oas[,c('code')], cob[,c('geography','nonUKZoneProp')], by.x = 'code', by.y = 'geography')
+eth_geo <- merge(oas[,c('oa11cd')], eth[,c('OA11CD','nonwhiteZoneProp.oa','nonwhiteZoneProp.lsoa','nonwhiteZoneProp.msoa')], by.x = 'oa11cd', by.y = 'OA11CD')
+eth_geo
 
+### Right so now to sort of use the r2stl stuff
 r2stl_geo(
-  cob_geo,
-  'nonUKZoneProp',
+  eth_geo,
+  'nonwhiteZoneProp.oa',
   gridResolution=50,
   keepXYratio = T,
   zRatio = 0.25,
   show.persp = F,
-  filename= 'stl/nonUKbornSheffield.stl'
+  filename= 'stl/nonwhiteRotherham.stl'
 )
 
+r2stl_geo(
+  eth_geo,
+  'nonwhiteZoneProp.lsoa',
+  gridResolution=50,
+  keepXYratio = T,
+  zRatio = 0.25,
+  show.persp = F,
+  filename= 'stl/nonwhiteRotherham_lsoa.stl'
+)
 
-
-
-
-
-
+r2stl_geo(
+  eth_geo,
+  'nonwhiteZoneProp.msoa',
+  gridResolution=50,
+  keepXYratio = T,
+  zRatio = 0.25,
+  show.persp = F,
+  filename= 'stl/nonwhiteRotherham_msoa.stl'
+)

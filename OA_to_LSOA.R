@@ -28,7 +28,7 @@ lsoasSheff <- lsoasSheff[!(lsoasSheff$code %in% c('E01008128', 'E01008129', 'E01
 plot(lsoasSheff,col='red')
 
 #Save...
-writeOGR(lsoasSheff,'data/boundarydata','sheffield_oa_2011_MinuswestEnd',driver="ESRI Shapefile", overwrite_layer=T)
+writeOGR(lsoasSheff,'data/boundarydata','sheffield_lsoa_2011_MinuswestEnd',driver="ESRI Shapefile", overwrite_layer=T)
 
 #~~~~~~~~~~~~~~
 #Ethnicity----

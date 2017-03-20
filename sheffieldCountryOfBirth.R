@@ -67,6 +67,12 @@ cob <- read_csv('data/countryOfBirth_Y&H_LSOA.csv')
 lsoas <- readOGR('data/boundarydata','sheffield_lsoa_2011_MinuswestEnd')
 plot(lsoas, col='red')
 
+roads <- readOGR('data/boundarydata','sheffield_mainRoadsBuffer25m')
+plot(roads, add=T)
+
+#Currently a single polygon with no attributes. Add one with the value we want to use
+roads$relief <- -1
+
 #check OA match. Tick.
 table(lsoas$code %in% cob$LSOA11CD)
 
@@ -92,11 +98,12 @@ cob_geo <- merge(lsoas[,c('code')], cob[,c('LSOA11CD','nonUKZoneProp')], by.x = 
 r2stl_geo(
   cob_geo,
   'nonUKZoneProp',
-  gridResolution=50,
+  gridResolution=10,
   keepXYratio = T,
   zRatio = 0.25,
   show.persp = F,
-  filename= 'stl/shefCoBNonUKLSOA_50m.stl'
+  filename= 'stl/shefCoBNonUKLSOA_10m_roadneg25m.stl',
+  reliefLayer = roads
 )
 
 

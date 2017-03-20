@@ -9,12 +9,23 @@ lapply(geolibs, require, character.only = TRUE)
 # The data take the same form as in R's persp() plots: x and y
 # represent a grid and z gives heights above this grid
 
+#SMI edit: function for returning consistent values for z
+#Proportional to the projection units
+consistent_ZValues <- function(shapefile=NULL,variable=NULL){
+  
+  
+  
+}
+
+
+
 # SMI edit: add a shapefile to be rasterised before stling
 # gridResolution is in the projection units e.g. 100 in BNG: each grid square represents 100 metres
 # tweak for control over z scale and normalising x/y to keep proportions
 # keepXYratio = T: will maintain the ratio, normalising to [0,1] the larger of the two.
 # zRatio: numeric. Will make max z height proportional to 1.
-r2stl_geo <- function(shapefile=NULL, variable=NULL, gridResolution = 100, keepXYratio = TRUE, zRatio = 0.5, filename='3d-R-object.stl', object.name='r2stl-object', min.height=0.008, show.persp=FALSE, strict.stl=FALSE) {
+# relief layer: e.g. a road shapefile that will be removed/added to the STL surface
+r2stl_geo <- function(shapefile=NULL, variable=NULL, gridResolution = 100, keepXYratio = TRUE, zRatio = 0.5, filename='3d-R-object.stl', object.name='r2stl-object', min.height=0.008, show.persp=FALSE, strict.stl=FALSE, reliefLayer = NULL) {
 
   # NB assuming a 60mm height for printed object, default min.height of 
   # 0.008 gives a minimum printed height of 0.5mm
@@ -62,13 +73,21 @@ r2stl_geo <- function(shapefile=NULL, variable=NULL, gridResolution = 100, keepX
   
   useRaster <- rasterize(shapefile,r,df[,variable])
   
+  #~~~~~~~~~~~~~~~
+  #If a relief layer is included, add/remove it from surface
+  #Assume it's a single value from the 'relief' variable
+  if(!is.null(reliefLayer)){
+    reliefRaster <- rasterize(reliefLayer,r,reliefLayer$relief)
+    reliefRaster[is.na(reliefRaster)] <- 0
+    useRaster <- useRaster + reliefRaster
+  }
+  
   x = 1:nrow(useRaster) 
   y = 1:ncol(useRaster)
   z <- as.matrix(useRaster)
   z[is.na(z)] <- 0
   
-  #Back to orig
-  
+  #Back to orig with some edits for proportions
 
     if (min.height >= 1) {
         min.height <- 0.5 / min.height

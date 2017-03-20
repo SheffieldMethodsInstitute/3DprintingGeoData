@@ -21,7 +21,6 @@ cob$nonUK <- cob$`Country of Birth: All categories: Country of birth` -
 
 #as % of zone pop
 cob$nonUKZoneProp.oa <- (cob$nonUK/cob$`Country of Birth: All categories: Country of birth`)*100
-hist(cob$nonUKZoneProp)
 
 ##  merge the data
 cob.lsoa<-merge(x=oa,y=cob[,c('geography','nonUK','nonUKZoneProp.oa','Country of Birth: All categories: Country of birth')],by.x='OA11CD',by.y='geography')
@@ -33,9 +32,20 @@ lsoa.stats<-aggregate(cob.lsoa[,c('nonUK','Country of Birth: All categories: Cou
 names(lsoa.stats)<-paste(names(lsoa.stats),'lsoa',sep='.')
 names(lsoa.stats)
 
-##  Append the lsoa stats to 
+## Use agrgegate to create msoa stats
+msoa.stats<-aggregate(cob.lsoa[,c('nonUK','Country of Birth: All categories: Country of birth')],
+                      list(cob.lsoa$MSOA11CD),sum)
+names(msoa.stats)<-paste(names(msoa.stats),'msoa',sep='.')
+names(msoa.stats)
+
+
+##  Append the lsoa and msoa stats to cob file 
 cob.lsoa<-merge(x=cob.lsoa,y=lsoa.stats,by.x='LSOA11CD',by.y='Group.1.lsoa')
+cob.lsoa<-merge(x=cob.lsoa,y=msoa.stats,by.x='MSOA11CD',by.y='Group.1.msoa')
+
 cob.lsoa$nonUKZoneProp.lsoa<-(cob.lsoa$nonUK.lsoa/cob.lsoa$`Country of Birth: All categories: Country of birth.lsoa`)*100
+cob.lsoa$nonUKZoneProp.msoa<-(cob.lsoa$nonUK.msoa/cob.lsoa$`Country of Birth: All categories: Country of birth.msoa`)*100
+
 
 ##  Save it 
-write.csv(cob.lsoa,'data/cob lsoa.csv')
+write.csv(cob.lsoa,'data/cob lsoa msoa.csv')

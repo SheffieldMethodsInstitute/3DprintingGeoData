@@ -49,21 +49,16 @@ r2stl_geo(
 #LSOA level----
 #~~~~~~~~~~~~~~
 
-#Get output areas, reduce to Sheffield
-oas <- readOGR('data/boundarydata','sheffield_oa_2011_MinuswestEnd')
-#plot(oas)
-
-#Use this to subset the LSOAs we want to cover the same area
-lsoas <- 
+lsoas <- readOGR('data/boundarydata','sheffield_lsoa_2011_MinuswestEnd')
 
 #Get ethnicity data
-eth <- read_csv('data/ethnicity_Y&H.csv')
+eth <- read_csv('data/ethnicity_Y&H_LSOA.csv')
 
 #check OA match. Tick. (1817 zones.)
-table(oas$code %in% eth$geography)
+table(lsoas$code %in% eth$LSOA11CD)
 
 #Subset to Sheffield
-eth <- eth[eth$geography %in% oas$code,]
+eth <- eth[eth$LSOA11CD %in% lsoas$code,]
 
 #tidy to make easier to read
 names(eth) <- gsub('; measures: Value','', names(eth))
@@ -76,7 +71,7 @@ eth$nonwhiteZoneProp <- (eth$nonwhite/eth$`Ethnic Group: All usual residents`)*1
 hist(eth$nonwhiteZoneProp)
 
 #merge with geography - keep only the column we want for now.
-eth_geo <- merge(oas[,c('code')], eth[,c('geography','nonwhiteZoneProp')], by.x = 'code', by.y = 'geography')
+eth_geo <- merge(lsoas[,c('code')], eth[,c('LSOA11CD','nonwhiteZoneProp')], by.x = 'code', by.y = 'LSOA11CD')
 
 r2stl_geo(
   eth_geo,
@@ -85,7 +80,7 @@ r2stl_geo(
   keepXYratio = T,
   zRatio = 0.25,
   show.persp = F,
-  filename= 'stl/test.stl'
+  filename= 'stl/shefNonWhiteLSOA_50m.stl'
 )
 
 

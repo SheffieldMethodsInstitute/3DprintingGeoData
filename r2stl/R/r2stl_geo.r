@@ -98,10 +98,15 @@ r2stl_geo <- function(shapefile=NULL, variable=NULL, gridResolution = 100, keepX
                                   proj4string=CRS(proj4string(shapefile)))
     
     interp <- idw(df[,variable]~1, gCentroid(shapefile,byid=T), grid, idp = interpolate) 
-    #spplot(interp)
     
     useRaster <- raster(interp)
-    #plot(r)
+    proj4string(useRaster) <- proj4string(shapefile)
+    extent(useRaster) <- extent(shapefile)
+    
+    #Also need a matching empty raster for any overlay
+    r <- raster(ncols = ncol(useRaster), nrows = nrow(useRaster))
+    proj4string(r) <- proj4string(shapefile)
+    extent(r) <- extent(shapefile)
     
   } else {
   
@@ -117,6 +122,7 @@ r2stl_geo <- function(shapefile=NULL, variable=NULL, gridResolution = 100, keepX
   
   }
   
+  
   #~~~~~~~~~~~~~~~~~~~~~~~~~~
   #relief layer---
   #~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -125,6 +131,9 @@ r2stl_geo <- function(shapefile=NULL, variable=NULL, gridResolution = 100, keepX
   if(!is.null(reliefLayer)){
     reliefRaster <- rasterize(reliefLayer,r,reliefLayer$relief)
     reliefRaster[is.na(reliefRaster)] <- 0#NAs set that point to zero rather than the underlying raster layer
+    
+    print(paste0('useRaster dim: ',dim(useRaster),", reliefRaster dim: ",dim(reliefRaster)))
+    
     useRaster <- useRaster + reliefRaster
   }
   

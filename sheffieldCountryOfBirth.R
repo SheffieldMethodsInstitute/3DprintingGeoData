@@ -159,13 +159,13 @@ plot(r)
 r2stl_geo(
   cob_geo,
   'nonUKZoneProp',
-  gridResolution=50,
+  gridResolution=25,
   keepXYratio = T,
   zRatio = 0.25,
   show.persp = F,
-  filename= 'stl/COBSheffield50mInterpolate8.stl',
+  filename= 'stl/COBSheffield25mInterpolate6.stl',
   reliefLayer = roads,
-  interpolate = 8
+  interpolate = 6
 )
 
 #So the idw function must be 1/idp?

@@ -2,11 +2,11 @@
 
 Z values from polygon data:
 
-<img src="https://github.com/SheffieldMethodsInstitute/3DprintingGeoData/blob/master/images/10mGrid.png" width="300" align = "center">
+<img src="https://github.com/SheffieldMethodsInstitute/3DprintingGeoData/blob/master/images/10mGrid.png" width="600" align = "center">
 
 Interpolated from LSOA centroids:
 
-<img src="https://github.com/SheffieldMethodsInstitute/3DprintingGeoData/blob/master/images/25mGridInterpolation_CoB.png" width="300" align = "center">
+<img src="https://github.com/SheffieldMethodsInstitute/3DprintingGeoData/blob/master/images/25mGridInterpolation_CoB.png" width="600" align = "center">
 
 ## Bits
 

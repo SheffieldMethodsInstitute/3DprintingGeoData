@@ -1,4 +1,4 @@
-geolibs <- c("spdep","ggmap","rgdal","rgeos","maptools","dplyr","tidyr","tmap","raster", "dplyr", "tidyr","assertthat","data.table",'readr','pryr','combinat')
+geolibs <- c("spdep","ggmap","rgdal","rgeos","maptools","dplyr","tidyr","tmap","raster", "dplyr", "tidyr","assertthat","data.table",'readr','pryr','combinat','gstat')
 lapply(geolibs, require, character.only = TRUE)
 
 # r2stl.r - produce an STL file containing a 3D surface plot
@@ -25,7 +25,8 @@ consistent_ZValues <- function(shapefile=NULL,variable=NULL){
 # keepXYratio = T: will maintain the ratio, normalising to [0,1] the larger of the two.
 # zRatio: numeric. Will make max z height proportional to 1.
 # relief layer: e.g. a road shapefile that will be removed/added to the STL surface
-r2stl_geo <- function(shapefile=NULL, variable=NULL, gridResolution = 100, keepXYratio = TRUE, zRatio = 0.5, filename='3d-R-object.stl', object.name='r2stl-object', min.height=0.008, show.persp=FALSE, strict.stl=FALSE, reliefLayer = NULL) {
+# If interpolate >0, do a simple inverse-distance-weighting interpolation using the input data. Use the value as the exponent.
+r2stl_geo <- function(shapefile=NULL, variable=NULL, gridResolution = 100, keepXYratio = TRUE, zRatio = 0.5, filename='3d-R-object.stl', object.name='r2stl-object', min.height=0.008, show.persp=FALSE, strict.stl=FALSE, reliefLayer = NULL, interpolate = 0) {
 
   # NB assuming a 60mm height for printed object, default min.height of 
   # 0.008 gives a minimum printed height of 0.5mm
@@ -54,6 +55,7 @@ r2stl_geo <- function(shapefile=NULL, variable=NULL, gridResolution = 100, keepX
   
   #Won't work directly with the SPDF if accessing var name programmatically
   df <- data.frame(shapefile)
+  
   if (is.numeric(variable)){
     if (ncol(df) > variable) stop('Argument <<variable>>: too high, no column in that index')
   } else {
@@ -61,24 +63,68 @@ r2stl_geo <- function(shapefile=NULL, variable=NULL, gridResolution = 100, keepX
   }
 
   #SMI additions
-  #Create a raster to match the shapefile, resolution of gridResolution
+  
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  #Create raster
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  
+  #These are needed in either case
   width <- (xmax(shapefile)-xmin(shapefile))/gridResolution
   height <- (ymax(shapefile)-ymin(shapefile))/gridResolution
   
-  print(paste0("Grid resolution gives: ",as.integer(width),"x",as.integer(height)))
+  #If interpolate > 0, make an interpolation raster based on the shapefile centroids
+  if(interpolate){
+    
+    #This code to get the underlying interpolation grid lifted from:
+    #http://gis.stackexchange.com/questions/158021/plotting-map-resulted-from-kriging-in-r
+    
+    #Assuming same-length polygons and data got passed in.
+    
+    #Use extent of shapefile, not extent of centroid points.
+    min_x = min(coordinates(shapefile)[,1]) #minimun x coordinate
+    min_y = min(coordinates(shapefile)[,2]) #minimun y coordinate
+    
+    x_length = max(coordinates(shapefile)[,1] - min_x) #easting amplitude
+    y_length = max(coordinates(shapefile)[,2] - min_y) #northing amplitude
+    #cellsize = 50 #pixel size
+    ncol = round(x_length/gridResolution,0) #number of columns in grid
+    nrow = round(y_length/gridResolution,0) #number of rows in grid
+    
+    grid = GridTopology(cellcentre.offset=c(min_x,min_y),cellsize=c(gridResolution,gridResolution),cells.dim=c(ncol,nrow))
+    
+    #Convert GridTopolgy object to SpatialPixelsDataFrame object.
+    grid = SpatialPixelsDataFrame(grid,
+                                  data=data.frame(id=1:prod(ncol,nrow)),
+                                  proj4string=CRS(proj4string(shapefile)))
+    
+    interp <- idw(df[,variable]~1, gCentroid(shapefile,byid=T), grid, idp = interpolate) 
+    #spplot(interp)
+    
+    useRaster <- raster(interp)
+    #plot(r)
+    
+  } else {
   
-  r <- raster(ncols = width, nrows = height)
-  proj4string(r) <- proj4string(shapefile)
-  extent(r) <- extent(shapefile)
+    #Otherwise, create a raster where heights connect to each polygon's data
+    
+    print(paste0("Grid resolution gives: ",as.integer(width),"x",as.integer(height)))
+    
+    r <- raster(ncols = width, nrows = height)
+    proj4string(r) <- proj4string(shapefile)
+    extent(r) <- extent(shapefile)
+    
+    useRaster <- rasterize(shapefile,r,df[,variable])
   
-  useRaster <- rasterize(shapefile,r,df[,variable])
+  }
   
-  #~~~~~~~~~~~~~~~
-  #If a relief layer is included, add/remove it from surface
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~
+  #relief layer---
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #If a relief layer is included, add/remove it from surface
   #Assume it's a single value from the 'relief' variable
   if(!is.null(reliefLayer)){
     reliefRaster <- rasterize(reliefLayer,r,reliefLayer$relief)
-    reliefRaster[is.na(reliefRaster)] <- 0
+    reliefRaster[is.na(reliefRaster)] <- 0#NAs set that point to zero rather than the underlying raster layer
     useRaster <- useRaster + reliefRaster
   }
   

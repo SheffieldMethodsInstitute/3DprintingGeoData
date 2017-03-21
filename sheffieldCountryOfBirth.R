@@ -106,6 +106,72 @@ r2stl_geo(
   reliefLayer = roads
 )
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#Interpolation: LSOA----
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#Will need to pass raster data in directly to the r2stl function. But let's create it first.
+#So the data itself will be point data based on LSOA centroids.
+lsoas <- readOGR('data/boundarydata','sheffield_lsoa_2011_MinuswestEnd')
+plot(lsoas, col='red')
+
+#Which assumes they're all dissolved to single IDs
+lsoaCentroids <- gCentroid(lsoas,byid=T)
+plot(lsoaCentroids, add=T)
+
+#Using cob_geo calculated above
+df <- data.frame(cob_geo)
+
+#So let's see if I can just calculate...
+#Actually, let's just stick to code we know works
+#http://gis.stackexchange.com/questions/158021/plotting-map-resulted-from-kriging-in-r
+
+#Make grid as per link above. Start fairly crude.
+#Actually, use extent of original LSOA shapefile
+
+min_x = min(coordinates(lsoas)[,1]) #minimun x coordinate
+min_y = min(coordinates(lsoas)[,2]) #minimun y coordinate
+
+x_length = max(coordinates(lsoas)[,1] - min_x) #easting amplitude
+y_length = max(coordinates(lsoas)[,2] - min_y) #northing amplitude
+cellsize = 50 #pixel size
+ncol = round(x_length/cellsize,0) #number of columns in grid
+nrow = round(y_length/cellsize,0) #number of rows in grid
+
+grid = GridTopology(cellcentre.offset=c(min_x,min_y),cellsize=c(cellsize,cellsize),cells.dim=c(ncol,nrow))
+
+#Convert GridTopolgy object to SpatialPixelsDataFrame object.
+grid = SpatialPixelsDataFrame(grid,
+                              data=data.frame(id=1:prod(ncol,nrow)),
+                              proj4string=CRS(proj4string(lsoas)))
+
+#Same length? Tick. So one spatial point for each data point.
+#Though I may need to double-check they're actually in the correct order.
+lsoaCentroids %>% length == cob_geo %>% nrow
+
+interp <- idw(cob_geo@data$nonUKZoneProp~1, lsoaCentroids, grid, idp = 2)
+spplot(interp)
+
+r = raster(interp)
+plot(r)
+#writeRaster(r,'QGIS/idw2_pre_detail.tif')
+
+r2stl_geo(
+  cob_geo,
+  'nonUKZoneProp',
+  gridResolution=50,
+  keepXYratio = T,
+  zRatio = 0.25,
+  show.persp = F,
+  filename= 'stl/COBSheffield50mInterpolate8.stl',
+  reliefLayer = roads,
+  interpolate = 8
+)
+
+#So the idw function must be 1/idp?
+#dist = seq(from=0, to = 20, by = 0.1)
+#plot(1/(dist^2))
+
 
 
 

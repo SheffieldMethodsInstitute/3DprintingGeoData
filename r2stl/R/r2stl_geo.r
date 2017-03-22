@@ -83,14 +83,25 @@ r2stl_geo <- function(shapefile=NULL, variable=NULL, gridResolution = 100, keepX
     #Assuming same-length polygons and data got passed in.
     
     #Use extent of shapefile, not extent of centroid points.
-    min_x = min(coordinates(shapefile)[,1]) #minimun x coordinate
-    min_y = min(coordinates(shapefile)[,2]) #minimun y coordinate
+    #Oops: coordinates does in fact get centroids...
+    # min_x = min(coordinates(shapefile)[,1]) #minimun x coordinate
+    # min_y = min(coordinates(shapefile)[,2]) #minimun y coordinate
+    # x_length = max(coordinates(shapefile)[,1] - min_x) #easting amplitude
+    # y_length = max(coordinates(shapefile)[,2] - min_y) #northing amplitude
+    min_x = extent(shapefile)[1]
+    min_y = extent(shapefile)[3]
     
-    x_length = max(coordinates(shapefile)[,1] - min_x) #easting amplitude
-    y_length = max(coordinates(shapefile)[,2] - min_y) #northing amplitude
-    #cellsize = 50 #pixel size
+    x_length = extent(shapefile)[2] - extent(shapefile)[1]
+    y_length = extent(shapefile)[4] - extent(shapefile)[3]
+    
     ncol = round(x_length/gridResolution,0) #number of columns in grid
     nrow = round(y_length/gridResolution,0) #number of rows in grid
+    
+    #Or just use the values we already have...
+    # ncol = shapefile_x
+    # nrow = shapefile_y
+      
+    #print(paste0('interpolation dim, col * row / x * y: ', ncol,',',nrow))
     
     grid = GridTopology(cellcentre.offset=c(min_x,min_y),cellsize=c(gridResolution,gridResolution),cells.dim=c(ncol,nrow))
     
@@ -139,7 +150,7 @@ r2stl_geo <- function(shapefile=NULL, variable=NULL, gridResolution = 100, keepX
     useRaster <- useRaster + reliefRaster
   }
   
-  x = 1:ncol(useRaster) 
+  x = 1:ncol(useRaster)
   y = 1:nrow(useRaster)
   
   #A bit of transposing and flipping to get oriented correctly

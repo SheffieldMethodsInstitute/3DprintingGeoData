@@ -1,4 +1,4 @@
-geolibs <- c("spdep","ggmap","rgdal","rgeos","maptools","dplyr","tidyr","tmap","raster", "dplyr", "tidyr","assertthat","data.table",'readr','pryr','combinat','gstat')
+geolibs <- c("spdep","ggmap","rgdal","rgeos","maptools","dplyr","tidyr","tmap","raster", "dplyr", "tidyr","assertthat","data.table",'readr','pryr','combinat','gstat','jpeg')
 lapply(geolibs, require, character.only = TRUE)
 
 # r2stl.r - produce an STL file containing a 3D surface plot
@@ -18,6 +18,18 @@ consistent_ZValues <- function(shapefile=NULL,variable=NULL){
 }
 
 
+rasterToFitShapefileExtent <- function(shapefile, gridResolution){
+  
+  shapefile_x <- (xmax(shapefile)-xmin(shapefile))/gridResolution
+  shapefile_y <- (ymax(shapefile)-ymin(shapefile))/gridResolution
+  
+  r <- raster(ncols = shapefile_x, nrows = shapefile_y)
+  proj4string(r) <- proj4string(shapefile)
+  extent(r) <- extent(shapefile)
+  
+  return(r)
+  
+}
 
 # SMI edit: add a shapefile to be rasterised before stling
 # gridResolution is in the projection units e.g. 100 in BNG: each grid square represents 100 metres
@@ -72,7 +84,7 @@ r2stl_geo <- function(shapefile=NULL, variable=NULL, gridResolution = 100, keepX
   shapefile_x <- (xmax(shapefile)-xmin(shapefile))/gridResolution
   shapefile_y <- (ymax(shapefile)-ymin(shapefile))/gridResolution
   
-  print(paste0('shapefile_x grid squares: ',as.integer(shapefile_x),'  shapefile_y grid squares: ', as.integer(shapefile_y)))
+  cat(paste0('shapefile_x grid squares: ',as.integer(shapefile_x),'  shapefile_y grid squares: ', as.integer(shapefile_y),'\n'))
   
   #If interpolate > 0, make an interpolation raster based on the shapefile centroids
   if(interpolate){
@@ -83,11 +95,7 @@ r2stl_geo <- function(shapefile=NULL, variable=NULL, gridResolution = 100, keepX
     #Assuming same-length polygons and data got passed in.
     
     #Use extent of shapefile, not extent of centroid points.
-    #Oops: coordinates does in fact get centroids...
-    # min_x = min(coordinates(shapefile)[,1]) #minimun x coordinate
-    # min_y = min(coordinates(shapefile)[,2]) #minimun y coordinate
-    # x_length = max(coordinates(shapefile)[,1] - min_x) #easting amplitude
-    # y_length = max(coordinates(shapefile)[,2] - min_y) #northing amplitude
+    #Or just use the values we already have doesn't quite work...
     min_x = extent(shapefile)[1]
     min_y = extent(shapefile)[3]
     
@@ -97,10 +105,6 @@ r2stl_geo <- function(shapefile=NULL, variable=NULL, gridResolution = 100, keepX
     ncol = round(x_length/gridResolution,0) #number of columns in grid
     nrow = round(y_length/gridResolution,0) #number of rows in grid
     
-    #Or just use the values we already have...
-    # ncol = shapefile_x
-    # nrow = shapefile_y
-      
     #print(paste0('interpolation dim, col * row / x * y: ', ncol,',',nrow))
     
     grid = GridTopology(cellcentre.offset=c(min_x,min_y),cellsize=c(gridResolution,gridResolution),cells.dim=c(ncol,nrow))
@@ -138,16 +142,25 @@ r2stl_geo <- function(shapefile=NULL, variable=NULL, gridResolution = 100, keepX
   #~~~~~~~~~~~~~~~~~~~~~~~~~~
   #relief layer---
   #~~~~~~~~~~~~~~~~~~~~~~~~~~
-    #If a relief layer is included, add/remove it from surface
+  #If a relief layer is included:
+  #If it's a shapefile, add/remove it from surface
   #Assume it's a single value from the 'relief' variable
-  if(!is.null(reliefLayer)){
+  if(class(reliefLayer)=='SpatialPolygonsDataFrame'){
+    
+    cat('relief layer from SpatialPolygonsDataFrame\n')
     reliefRaster <- rasterize(reliefLayer,r,reliefLayer$relief)
     reliefRaster[is.na(reliefRaster)] <- 0#NAs set that point to zero rather than the underlying raster layer
     
-    print(paste0('useRaster dim: ',dim(useRaster)))
-    print(paste0('reliefRaster dim: ',dim(reliefRaster)))
+    cat(paste0('useRaster dim: ',dim(useRaster),'\n'))
+    cat(paste0('reliefRaster dim: ',dim(reliefRaster),'\n'))
     
     useRaster <- useRaster + reliefRaster
+    
+    #If a rasterlayer, assume it's been assembled ready to add directly
+  } else if(class(reliefLayer)=='RasterLayer'){
+    
+    useRaster <- useRaster + reliefLayer
+    
   }
   
   x = 1:ncol(useRaster)
@@ -212,14 +225,16 @@ r2stl_geo <- function(shapefile=NULL, variable=NULL, gridResolution = 100, keepX
     	#centre
     	# yy <- yy + ((1-(shapefile_y/shapefile_x))/2)
     	
-    	print(paste0('range xx: ', range(xx), ', range yy: ', range(yy)))
+    	cat(paste0('range xx: ', range(xx), ', range yy: ', range(yy)))
+    	cat('\n')
     	
 	  } else {
     	yy <- normit(y)
     	xx <- normit(x) * (shapefile_x/shapefile_y)
     	#centre
     	# xx <- xx + ((1-(shapefile_x/shapefile_y))/2)
-    	print(paste0('range xx: ', range(xx), ', range yy: ', range(yy)))
+    	cat(paste0('range xx: ', range(xx), ', range yy: ', range(yy)))
+    	cat('\n')
     	
 	  }
 	}

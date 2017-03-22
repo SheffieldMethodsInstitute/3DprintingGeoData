@@ -1,4 +1,3 @@
-#Tweaked r2stl code
 source('r2stl/R/r2stl_geo.r')
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -129,32 +128,38 @@ df <- data.frame(cob_geo)
 #Make grid as per link above. Start fairly crude.
 #Actually, use extent of original LSOA shapefile
 
-min_x = min(coordinates(lsoas)[,1]) #minimun x coordinate
-min_y = min(coordinates(lsoas)[,2]) #minimun y coordinate
-
-x_length = max(coordinates(lsoas)[,1] - min_x) #easting amplitude
-y_length = max(coordinates(lsoas)[,2] - min_y) #northing amplitude
-cellsize = 50 #pixel size
-ncol = round(x_length/cellsize,0) #number of columns in grid
-nrow = round(y_length/cellsize,0) #number of rows in grid
-
-grid = GridTopology(cellcentre.offset=c(min_x,min_y),cellsize=c(cellsize,cellsize),cells.dim=c(ncol,nrow))
-
-#Convert GridTopolgy object to SpatialPixelsDataFrame object.
-grid = SpatialPixelsDataFrame(grid,
-                              data=data.frame(id=1:prod(ncol,nrow)),
-                              proj4string=CRS(proj4string(lsoas)))
-
-#Same length? Tick. So one spatial point for each data point.
-#Though I may need to double-check they're actually in the correct order.
-lsoaCentroids %>% length == cob_geo %>% nrow
-
-interp <- idw(cob_geo@data$nonUKZoneProp~1, lsoaCentroids, grid, idp = 2)
-spplot(interp)
-
-r = raster(interp)
-plot(r)
-writeRaster(r,'local/qgis/shefRasterCheck.tif')
+# min_x = min(coordinates(lsoas)[,1]) #minimun x coordinate
+# min_y = min(coordinates(lsoas)[,2]) #minimun y coordinate
+# 
+# x_length = max(coordinates(lsoas)[,1] - min_x) #easting amplitude
+# y_length = max(coordinates(lsoas)[,2] - min_y) #northing amplitude
+# min_x = extent(lsoas)[1]
+# min_y = extent(lsoas)[3]
+# 
+# x_length = extent(lsoas)[2] - extent(lsoas)[1]
+# y_length = extent(lsoas)[4] - extent(lsoas)[3]
+# 
+# cellsize = 50 #pixel size
+# ncol = round(x_length/cellsize,0) #number of columns in grid
+# nrow = round(y_length/cellsize,0) #number of rows in grid
+# 
+# grid = GridTopology(cellcentre.offset=c(min_x,min_y),cellsize=c(cellsize,cellsize),cells.dim=c(ncol,nrow))
+# 
+# #Convert GridTopolgy object to SpatialPixelsDataFrame object.
+# grid = SpatialPixelsDataFrame(grid,
+#                               data=data.frame(id=1:prod(ncol,nrow)),
+#                               proj4string=CRS(proj4string(lsoas)))
+# 
+# #Same length? Tick. So one spatial point for each data point.
+# #Though I may need to double-check they're actually in the correct order.
+# lsoaCentroids %>% length == cob_geo %>% nrow
+# 
+# interp <- idw(cob_geo@data$nonUKZoneProp~1, lsoaCentroids, grid, idp = 6)
+# spplot(interp)
+# 
+# r = raster(interp)
+# plot(r)
+# writeRaster(r,'local/qgis/shefRasterCheck2.tif', overwrite=T)
 
 r2stl_geo(
   cob_geo,
@@ -168,14 +173,82 @@ r2stl_geo(
   interpolate = 6
 )
 
-#So the idw function must be 1/idp?
-#dist = seq(from=0, to = 20, by = 0.1)
-#plot(1/(dist^2))
+#Test creating own relief raster for adding extra features like north arrow to
+#Start with the roads shapefile
+r <- rasterToFitShapefileExtent(cob_geo,50)
 
+reliefRaster <- rasterize(roads,r,roads$relief)
+reliefRaster[is.na(reliefRaster)] <- 0#
 
+#Motorway
+mway <- readOGR('data/boundarydata','sheffield_MotorwayBuffer60m')
 
+#Currently a single polygon with no attributes. Add one with the value we want to use
+mway$relief <- -2
 
+mwayReliefRaster <- rasterize(mway,r,mway$relief)
+mwayReliefRaster[is.na(mwayReliefRaster)] <- 0#
 
+#combine
+reliefRaster <- min(reliefRaster,mwayReliefRaster)
+plot(reliefRaster)
 
+#North arrow
+northArrow <- raster('images/northArrow1.tif')
+values(northArrow) <- ifelse(values(northArrow) < 175,0,1)
 
+#get extent from qgis coord capture
+# extent(northArrow) <- c(
+#   439154.258,
+#   441015.601,
+#   381297.661,
+#   379581.358
+# )
+
+sm <- aggregate(northArrow, fact=10)
+plot(sm)
+dim(reliefRaster)
+dim(sm)
+proj4string(sm) <- proj4string(reliefRaster)
+extent(sm)
+plot(sm)
+
+newx <- 439903.630
+newy <- 379484.665
+xmax <- extent(sm)[2] * 6
+ymax <- extent(sm)[4] * 6
+
+extent(sm) <- c(xmin <- newx, xmax <- newx + xmax, ymin <- newy, ymax <- newy + ymax)
+extent(sm)
+
+sm2 <- projectRaster(sm,reliefRaster)
+plot(sm2)
+#writeRaster(sm2,'local/qgis/northarrowCheck.tif', overwrite=T)
+
+#So in theory...
+#reliefRaster2 <- merge(reliefRaster,sm2)
+sm2 <- 1-sm2
+values(sm2) <- ifelse(values(sm2) < 0.75,0,-2)
+
+plot(reliefRaster)
+plot(sm2,add=T)
+
+reliefRaster2 <- min(reliefRaster,sm2, na.rm = T)
+plot(reliefRaster2)
+
+#reliefRaster2 <- reliefRaster - (sm2 * 2)
+#reliefRaster2 <- overlay(reliefRaster,sm2,fun=function(x,y){return(x-(y*2))})
+
+#Good lord. Now let's see if it actually works in the thing
+r2stl_geo(
+  cob_geo,
+  'nonUKZoneProp',
+  gridResolution=50,
+  keepXYratio = T,
+  zRatio = 0.25,
+  show.persp = F,
+  filename= 'stl/arrowtest.stl',
+  reliefLayer = reliefRaster2,
+  interpolate = 6
+)
 

@@ -154,16 +154,16 @@ spplot(interp)
 
 r = raster(interp)
 plot(r)
-#writeRaster(r,'QGIS/idw2_pre_detail.tif')
+writeRaster(r,'local/qgis/shefRasterCheck.tif')
 
 r2stl_geo(
   cob_geo,
   'nonUKZoneProp',
-  gridResolution=25,
+  gridResolution=50,
   keepXYratio = T,
   zRatio = 0.25,
   show.persp = F,
-  filename= 'stl/COBSheffield25mInterpolate6.stl',
+  filename= 'stl/test.stl',
   reliefLayer = roads,
   interpolate = 6
 )

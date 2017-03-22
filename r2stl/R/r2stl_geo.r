@@ -69,8 +69,10 @@ r2stl_geo <- function(shapefile=NULL, variable=NULL, gridResolution = 100, keepX
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   
   #These are needed in either case
-  width <- (xmax(shapefile)-xmin(shapefile))/gridResolution
-  height <- (ymax(shapefile)-ymin(shapefile))/gridResolution
+  shapefile_x <- (xmax(shapefile)-xmin(shapefile))/gridResolution
+  shapefile_y <- (ymax(shapefile)-ymin(shapefile))/gridResolution
+  
+  print(paste0('shapefile_x grid squares: ',as.integer(shapefile_x),'  shapefile_y grid squares: ', as.integer(shapefile_y)))
   
   #If interpolate > 0, make an interpolation raster based on the shapefile centroids
   if(interpolate){
@@ -111,10 +113,9 @@ r2stl_geo <- function(shapefile=NULL, variable=NULL, gridResolution = 100, keepX
   } else {
   
     #Otherwise, create a raster where heights connect to each polygon's data
+    #print(paste0("Grid resolution gives: ",as.integer(shapefile_x),"x",as.integer(shapefile_y)))
     
-    print(paste0("Grid resolution gives: ",as.integer(width),"x",as.integer(height)))
-    
-    r <- raster(ncols = width, nrows = height)
+    r <- raster(ncols = shapefile_x, nrows = shapefile_y)
     proj4string(r) <- proj4string(shapefile)
     extent(r) <- extent(shapefile)
     
@@ -132,14 +133,19 @@ r2stl_geo <- function(shapefile=NULL, variable=NULL, gridResolution = 100, keepX
     reliefRaster <- rasterize(reliefLayer,r,reliefLayer$relief)
     reliefRaster[is.na(reliefRaster)] <- 0#NAs set that point to zero rather than the underlying raster layer
     
-    print(paste0('useRaster dim: ',dim(useRaster),", reliefRaster dim: ",dim(reliefRaster)))
+    print(paste0('useRaster dim: ',dim(useRaster)))
+    print(paste0('reliefRaster dim: ',dim(reliefRaster)))
     
     useRaster <- useRaster + reliefRaster
   }
   
-  x = 1:nrow(useRaster) 
-  y = 1:ncol(useRaster)
-  z <- as.matrix(useRaster)
+  x = 1:ncol(useRaster) 
+  y = 1:nrow(useRaster)
+  
+  #A bit of transposing and flipping to get oriented correctly
+  z <- t(as.matrix(useRaster))
+  #Aaand flip
+  z <- z[nrow(z):1,]
   z[is.na(z)] <- 0
   
   #Back to orig with some edits for proportions
@@ -179,6 +185,7 @@ r2stl_geo <- function(shapefile=NULL, variable=NULL, gridResolution = 100, keepX
     if (!fp) { stop("There was a problem opening the file for writing") }
 
 	# normalize all data onto a scale of 0 to 1
+	#Multiply z by ratio to make less than 1
 	zz <- (normit(z))*zRatio
 	
 	if(!keepXYratio){
@@ -188,16 +195,21 @@ r2stl_geo <- function(shapefile=NULL, variable=NULL, gridResolution = 100, keepX
   	
 	} else {
 	  #which is the larger? Normalise that one, make the other in proportion, and centre it
-	  if(width>height){
+	  if(shapefile_x>shapefile_y){
     	xx <- normit(x)
-    	yy <- normit(y) * (height/width)
+    	yy <- normit(y) * (shapefile_y/shapefile_x)
     	#centre
-    	# yy <- yy + ((1-(height/width))/2)
+    	# yy <- yy + ((1-(shapefile_y/shapefile_x))/2)
+    	
+    	print(paste0('range xx: ', range(xx), ', range yy: ', range(yy)))
+    	
 	  } else {
     	yy <- normit(y)
-    	xx <- normit(x) * (width/height)
+    	xx <- normit(x) * (shapefile_x/shapefile_y)
     	#centre
-    	# xx <- xx + ((1-(width/height))/2)
+    	# xx <- xx + ((1-(shapefile_x/shapefile_y))/2)
+    	print(paste0('range xx: ', range(xx), ', range yy: ', range(yy)))
+    	
 	  }
 	}
 	
@@ -288,7 +300,7 @@ r2stl_geo <- function(shapefile=NULL, variable=NULL, gridResolution = 100, keepX
 	for (i in 1:(length(xx)-1) ) { 
 		#j = 1 #normalized highest value
 	  #Proportional
-	  j = ifelse(height/width<1,height/width,1)
+	  j = ifelse(shapefile_y/shapefile_x<1,shapefile_y/shapefile_x,1)
 	  j = ifelse(keepXYratio,j,1)
 	  
 		k = length(yy) # actual highest value (for addressing the array)
@@ -316,7 +328,7 @@ r2stl_geo <- function(shapefile=NULL, variable=NULL, gridResolution = 100, keepX
 	for (i in 1:(length(yy)-1) ) { 
 		#j = 1		
 	  #Proportional
-	  j = ifelse(width/height<1,width/height,1)
+	  j = ifelse(shapefile_x/shapefile_y<1,shapefile_x/shapefile_y,1)
 	  j = ifelse(keepXYratio,j,1)
 	  #print(paste0('j:',j))
 		k = length(xx)
@@ -364,8 +376,8 @@ r2stl_geo <- function(shapefile=NULL, variable=NULL, gridResolution = 100, keepX
 		}
 	}
 	
-	xratio <- ifelse(width/height>1,1,width/height)
-	yratio <- ifelse(height/width>1,1,height/width)
+	xratio <- ifelse(shapefile_x/shapefile_y>1,1,shapefile_x/shapefile_y)
+	yratio <- ifelse(shapefile_y/shapefile_x>1,1,shapefile_y/shapefile_x)
 	
 	xratio <- ifelse(keepXYratio,xratio,1)
 	yratio <- ifelse(keepXYratio,yratio,1)

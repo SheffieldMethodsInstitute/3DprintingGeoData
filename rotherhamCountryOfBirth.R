@@ -71,8 +71,7 @@ cob_geo_lsoa <- merge(lsoas[,c('lsoa11cd')], cob[unique.lsoa,c('LSOA11CD','nonUK
 
 ##  Get the centroids
 lsoaCentroids <- gCentroid(cob_geo_lsoa,byid=T)
-plot(lsoaCentroids, add=T)
-lsoaCentroids
+plot(lsoaCentroids)
 
 #Using cob_geo calculated above
 df <- data.frame(cob_geo)
@@ -113,102 +112,24 @@ nrow = round(y_length/cellsize,0) #number of rows in grid
  interp <- idw(cob_geo_lsoa@data$nonUKZoneProp.lsoa~1, lsoaCentroids, grid, idp = 6)
  spplot(interp)
 # 
-# r = raster(interp)
-# plot(r)
+ r = raster(interp)
+ plot(r)
 # writeRaster(r,'local/qgis/shefRasterCheck2.tif', overwrite=T)
 
  
 #~~ Still WIP
  r2stl_geo(
-   cob_geo,
-   'nonUKZoneProp',
+   cob_geo_lsoa,
+   'nonUKZoneProp.lsoa',
    gridResolution=50,
    keepXYratio = T,
    zRatio = 0.25,
    show.persp = F,
-   filename= 'stl/test.stl',
-   reliefLayer = roads,
+   filename= 'stl/testroth.stl',
+#   reliefLayer = roads,
    interpolate = 6
  )
- 
- #Test creating own relief raster for adding extra features like north arrow to
- #Start with the roads shapefile
- r <- rasterToFitShapefileExtent(cob_geo,50)
- 
- reliefRaster <- rasterize(roads,r,roads$relief)
- reliefRaster[is.na(reliefRaster)] <- 0#
- 
- #Motorway
- mway <- readOGR('data/boundarydata','sheffield_MotorwayBuffer60m')
- 
- #Currently a single polygon with no attributes. Add one with the value we want to use
- mway$relief <- -2
- 
- mwayReliefRaster <- rasterize(mway,r,mway$relief)
- mwayReliefRaster[is.na(mwayReliefRaster)] <- 0#
- 
- #combine
- reliefRaster <- min(reliefRaster,mwayReliefRaster)
- plot(reliefRaster)
- 
- #North arrow
- northArrow <- raster('images/northArrow1.tif')
- values(northArrow) <- ifelse(values(northArrow) < 175,0,1)
- 
- #get extent from qgis coord capture
- # extent(northArrow) <- c(
- #   439154.258,
- #   441015.601,
- #   381297.661,
- #   379581.358
- # )
- 
- sm <- aggregate(northArrow, fact=10)
- plot(sm)
- dim(reliefRaster)
- dim(sm)
- proj4string(sm) <- proj4string(reliefRaster)
- extent(sm)
- plot(sm)
- 
- newx <- 439903.630
- newy <- 379484.665
- xmax <- extent(sm)[2] * 6
- ymax <- extent(sm)[4] * 6
- 
- extent(sm) <- c(xmin <- newx, xmax <- newx + xmax, ymin <- newy, ymax <- newy + ymax)
- extent(sm)
- 
- sm2 <- projectRaster(sm,reliefRaster)
- plot(sm2)
- #writeRaster(sm2,'local/qgis/northarrowCheck.tif', overwrite=T)
- 
- #So in theory...
- #reliefRaster2 <- merge(reliefRaster,sm2)
- sm2 <- 1-sm2
- values(sm2) <- ifelse(values(sm2) < 0.75,0,-2)
- 
- plot(reliefRaster)
- plot(sm2,add=T)
- 
- reliefRaster2 <- min(reliefRaster,sm2, na.rm = T)
- plot(reliefRaster2)
- 
- #reliefRaster2 <- reliefRaster - (sm2 * 2)
- #reliefRaster2 <- overlay(reliefRaster,sm2,fun=function(x,y){return(x-(y*2))})
- 
- #Good lord. Now let's see if it actually works in the thing
- r2stl_geo(
-   cob_geo,
-   'nonUKZoneProp',
-   gridResolution=50,
-   keepXYratio = T,
-   zRatio = 0.25,
-   show.persp = F,
-   filename= 'stl/arrowtest.stl',
-   reliefLayer = reliefRaster2,
-   interpolate = 6
- )
+
  
  
  

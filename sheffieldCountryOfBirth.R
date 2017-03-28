@@ -173,9 +173,22 @@ r2stl_geo(
   interpolate = 6
 )
 
-#Test creating own relief raster for adding extra features like north arrow to
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#Interpolation: LSOA, plus add combined raster as relief layer----
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#Create own relief raster for adding extra features like north arrow to
 #Start with the roads shapefile
 r <- rasterToFitShapefileExtent(cob_geo,50)
+
+#Roads: buffered in QGIS to provide some width in the raster.
+#Motorways wider than smaller roads...
+
+#Primary and A-roads
+roads <- readOGR('data/boundarydata','sheffield_mainRoadsBuffer25m')
+
+#Currently a single polygon with no attributes. Add one with the value we want to use
+roads$relief <- -1
 
 reliefRaster <- rasterize(roads,r,roads$relief)
 reliefRaster[is.na(reliefRaster)] <- 0#
@@ -197,14 +210,6 @@ plot(reliefRaster)
 northArrow <- raster('images/northArrow1.tif')
 values(northArrow) <- ifelse(values(northArrow) < 175,0,1)
 
-#get extent from qgis coord capture
-# extent(northArrow) <- c(
-#   439154.258,
-#   441015.601,
-#   381297.661,
-#   379581.358
-# )
-
 sm <- aggregate(northArrow, fact=10)
 plot(sm)
 dim(reliefRaster)
@@ -213,8 +218,10 @@ proj4string(sm) <- proj4string(reliefRaster)
 extent(sm)
 plot(sm)
 
+#Chosen coordinates for corner of image
 newx <- 439903.630
 newy <- 379484.665
+#Multiplication of image size
 xmax <- extent(sm)[2] * 6
 ymax <- extent(sm)[4] * 6
 
@@ -226,7 +233,6 @@ plot(sm2)
 #writeRaster(sm2,'local/qgis/northarrowCheck.tif', overwrite=T)
 
 #So in theory...
-#reliefRaster2 <- merge(reliefRaster,sm2)
 sm2 <- 1-sm2
 values(sm2) <- ifelse(values(sm2) < 0.75,0,-2)
 
@@ -251,4 +257,3 @@ r2stl_geo(
   reliefLayer = reliefRaster2,
   interpolate = 6
 )
-

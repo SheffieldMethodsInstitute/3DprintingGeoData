@@ -1,35 +1,38 @@
-#Tweaked r2stl code
+##  Rotherham: Non-UK pop and roads----
+
+
+##  >load in library and data: maps; roads and tables----
 source('r2stl/R/r2stl_geo.r')
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#Rotherham 1: non-UK pop 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+##  Loading in the data
 ##  Saving projection system and reprojecting the r.ham shp file
 osgb36<-("+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +datum=OSGB36 +units=m +no_defs +ellps=airy +towgs84=446.448,-125.157,542.060,0.1502,0.2470,0.8421,-20.4894")
 
+##  Read in oas and lsoa map files
 oas<-readOGR(dsn='data/boundarydata',layer='rotherham_oa_2011_noproj',p4s=osgb36)
 lsoas<-readOGR(dsn='data/boundarydata',layer='rotherham_lsoa_2011_noproj',p4s=osgb36)
 
-#Get eth data
+#Get ethnicity data
 cob <- read_csv('data/cob lsoa msoa.csv')
-#tidy to make easier to read
+# note: read_csv is a tidy function to make things easier to read (still read.csv)
 
 #Subset to Rotherham
 roth.id<-grep('Rotherham',cob$LSOA11NM)
 cob<-cob[roth.id,]
 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##  Graphing data
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+##  load in the roads file
+roads <- readOGR('data/boundarydata','rotherham_mainRoadsBuffer25m')
+roads$relief <- -1 #the relief variable determines identation in the r2stl function
 
-# oa-----------
-#merge with geography - keep only the column we want for now.
-names(cob)
-cob_geo <- merge(oas[,c('oa11cd')], cob[,c('OA11CD','nonUKZoneProp.oa','nonUKZoneProp.lsoa','nonUKZoneProp.msoa')], by.x = 'oa11cd', by.y = 'OA11CD')
-cob_geo
+##  Output: cob: table of c.o.b and lsoa/oa; oas: polygon file for oas; lsoas; polygon file for lsoas; roads: a polygon file of major roads in Rotherham and a relief variable for directon of indentation
 
-### Right so now to sort of use the r2stl stuff
+
+##  Graphing data: oa and lsoa----
+##  >Note: C.o.b table with map files: keep only the column we want for now (cob.sub).====
+cob.sub<-c('OA11CD','nonUKZoneProp.oa','nonUKZoneProp.lsoa','nonUKZoneProp.msoa')
+cob_geo <- merge(oas[,c('oa11cd')], cob[,cob.sub], by.x = 'oa11cd', by.y = 'OA11CD')
+
+##  >Saving test .stl do not run----
+##  Right now we use the r2stl_geo file to output eth plots by oa and lsoa
 r2stl_geo(
   cob_geo,
   'nonUKZoneProp.oa',
@@ -60,76 +63,118 @@ r2stl_geo(
   filename= 'stl/nonUKRotherham_msoa.stl'
 )
 
-# lsoa-----------
-#merge with geography - keep only the column we want for now.
-names(cob)
+##  output: 
+
+##  Graphing data: interpolated plots with roads----
 ##  We want an lsoa map for the interpolated plots
-sum(!lsoas$lsoa11cd%in%cob$LSOA11CD)
+
+##  The lsoas file is map file for plotting; we need to match the right c.o.b info to each lsoa
+sum(!lsoas$lsoa11cd%in%cob$LSOA11CD) #check for missing lsoas
 unique.lsoa<-match(lsoas$lsoa11cd,cob$LSOA11CD) #we cannot have more than 1 match from lsoa to cov so we just take the first matching lsoa
 
-cob_geo_lsoa <- merge(lsoas[,c('lsoa11cd')], cob[unique.lsoa,c('LSOA11CD','nonUKZoneProp.oa','nonUKZoneProp.lsoa','nonUKZoneProp.msoa')], by.x = 'lsoa11cd', by.y = 'LSOA11CD')
+##  subset to the c.o.b info we need (cob.sub). output: merged mapfile with c.o.b 'cob_geo_lsoa'
+cob_geo_lsoa <- merge(lsoas[,c('lsoa11cd')], cob[unique.lsoa,c('LSOA11CD',cob.sub)], by.x = 'lsoa11cd', by.y = 'LSOA11CD')
 
-##  Get the centroids
-lsoaCentroids <- gCentroid(cob_geo_lsoa,byid=T)
-plot(lsoaCentroids)
+##  Now to get the stl; the interpolate option has been included as part of the function itself 
+r2stl_geo(
+  cob_geo_lsoa,
+  'nonUKZoneProp.lsoa',
+  gridResolution=50,
+  keepXYratio = T,
+  zRatio = 0.25,
+  show.persp = F,
+  filename= 'stl/rothtest no inter.stl',
+  reliefLayer = roads,
+  interpolate = 0
+)
 
-#Using cob_geo calculated above
-df <- data.frame(cob_geo)
+##  Graphing data: Test using relief rasters for roads and north arrow----
 
-#So let's see if I can just calculate...
-#Actually, let's just stick to code we know works
-#http://gis.stackexchange.com/questions/158021/plotting-map-resulted-from-kriging-in-r
+##  Basically a relief layer is the layer upon which we indent onto the rest of the data 
+#Create own relief raster for adding extra features like north arrow to
+#Start with the roads shapefile
+r <- rasterToFitShapefileExtent(cob_geo_lsoa,50)
 
-#Make grid as per link above. Start fairly crude.
-#Actually, use extent of original LSOA shapefile
+##  Rasterise the roads, the relief variable in roads, and r (the rasterised geo file)
+reliefRaster <- rasterize(roads,r,roads$relief)
+reliefRaster[is.na(reliefRaster)] <- 0#
 
- min_x = min(coordinates(lsoas)[,1]) #minimun x coordinate
- min_y = min(coordinates(lsoas)[,2]) #minimun y coordinate
- 
- x_length = max(coordinates(lsoas)[,1] - min_x) #easting amplitude
- y_length = max(coordinates(lsoas)[,2] - min_y) #northing amplitude
- min_x = extent(lsoas)[1]
- min_y = extent(lsoas)[3]
- 
- x_length = extent(lsoas)[2] - extent(lsoas)[1]
- y_length = extent(lsoas)[4] - extent(lsoas)[3]
- 
-cellsize = 50 #pixel size
-ncol = round(x_length/cellsize,0) #number of columns in grid
-nrow = round(y_length/cellsize,0) #number of rows in grid
- 
- grid = GridTopology(cellcentre.offset=c(min_x,min_y),cellsize=c(cellsize,cellsize),cells.dim=c(ncol,nrow))
-# 
-# #Convert GridTopolgy object to SpatialPixelsDataFrame object.
- grid = SpatialPixelsDataFrame(grid,
-                               data=data.frame(id=1:prod(ncol,nrow)),
-                               proj4string=CRS(proj4string(lsoas)))
- 
-# #Same length? Tick. So one spatial point for each data point.
-# #Though I may need to double-check they're actually in the correct order.
-# lsoaCentroids %>% length == cob_geo %>% nrow
-# 
- interp <- idw(cob_geo_lsoa@data$nonUKZoneProp.lsoa~1, lsoaCentroids, grid, idp = 6)
- spplot(interp)
-# 
- r = raster(interp)
- plot(r)
-# writeRaster(r,'local/qgis/shefRasterCheck2.tif', overwrite=T)
+##  Next add in the motorways----
+#Motorway
+mway <- readOGR('data/boundarydata','rotherham_MotorwayBuffer60m')
+#Currently a single polygon with no attributes. Add one with the value we want to use
+mway$relief <- -2
+mwayReliefRaster <- rasterize(mway,r,mway$relief)
+mwayReliefRaster[is.na(mwayReliefRaster)] <- 0#
 
- 
-#~~ Still WIP
- r2stl_geo(
-   cob_geo_lsoa,
-   'nonUKZoneProp.lsoa',
-   gridResolution=50,
-   keepXYratio = T,
-   zRatio = 0.25,
-   show.persp = F,
-   filename= 'stl/testroth.stl',
-#   reliefLayer = roads,
-   interpolate = 6
- )
+#combine the 2 raster files
+reliefRaster <- min(reliefRaster,mwayReliefRaster)
+plot(reliefRaster)
 
- 
- 
- 
+#North arrow rasterised
+northArrow <- raster('images/northArrow1.tif')
+values(northArrow) <- ifelse(values(northArrow) == 0,1,0)
+
+sm <- aggregate(northArrow, fact=10)
+plot(sm)
+dim(reliefRaster)
+dim(sm)
+proj4string(sm) <- proj4string(reliefRaster)
+extent(sm)
+plot(sm)
+
+#Chosen coordinates for corner of image
+newx <- 439903.630
+newy <- 379484.665
+#Multiplication of image size
+xmax <- extent(sm)[2] * 6
+ymax <- extent(sm)[4] * 6
+
+extent(sm) <- c(xmin <- newx, xmax <- newx + xmax, ymin <- newy, ymax <- newy + ymax)
+extent(sm)
+
+sm2 <- projectRaster(sm,reliefRaster)
+plot(sm2)
+#writeRaster(sm2,'local/qgis/northarrowCheck.tif', overwrite=T)
+
+#So in theory...
+sm2 <- 1-sm2
+values(sm2) <- ifelse(values(sm2) < 0.75,0,-2)
+
+plot(reliefRaster)
+plot(sm2,add=T)
+
+reliefRaster2 <- min(reliefRaster,sm2, na.rm = T)
+plot(reliefRaster2)
+values(reliefRaster2)<-values(reliefRaster2)+10
+#reliefRaster2 <- reliefRaster - (sm2 * 2)
+#reliefRaster2 <- overlay(reliefRaster,sm2,fun=function(x,y){return(x-(y*2))})
+
+#Good lord. Now let's see if it actually works in the thing
+r2stl_geo(
+  cob_geo_lsoa,
+  'nonUKZoneProp.lsoa',
+  gridResolution=50,
+  keepXYratio = T,
+  zRatio = 0.25,
+  show.persp = F,
+  filename= 'stl/roth_arrowtest hi expo.stl',
+  reliefLayer = reliefRaster2,
+  interpolate = 20
+)
+
+### >Try non-interpolated version----
+
+r2stl_geo(
+  cob_geo_lsoa,
+  'nonUKZoneProp.lsoa',
+  gridResolution=50,
+  keepXYratio = T,
+  zRatio = 0.25,
+  show.persp = F,
+  filename= 'stl/roth_test arrow.stl',
+  reliefLayer = reliefRaster2
+)
+
+plot(reliefRaster)
+values(reliefRaster)

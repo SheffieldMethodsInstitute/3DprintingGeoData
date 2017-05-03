@@ -135,6 +135,8 @@ r2stl_geo <- function(shapefile=NULL, variable=NULL, gridResolution = 100, keepX
     extent(r) <- extent(shapefile)
     
     useRaster <- rasterize(shapefile,r,df[,variable])
+    ##>update: 3/5/2017, change NA values to 0 to allow relief layer to be added; Meng Le----
+    values(useRaster)[is.na(values(useRaster))]<-0
   
   }
   

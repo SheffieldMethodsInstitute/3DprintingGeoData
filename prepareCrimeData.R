@@ -58,6 +58,68 @@ ggplot(crm_df, aes(x = factor(Crime.type))) +
   geom_bar() +
   theme(axis.text.x = element_text(angle = 270, hjust = 0, vjust = 0.3))
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~
+#Crimes per head of population or per 1000 pop if a more sensible number----
+
+cob <- read_csv('data/countryOfBirth_Y&H_LSOA.csv')
+
+#887 ... other way round should be...?
+table(cob$LSOA11CD %in% crm_df$LSOAcode)
+#Well, we don't want any not in Y&H, do we?
+table(unique(crm_df$LSOAcode) %in% unique(cob$LSOA11CD))
+
+plot(lsoas[lsoas$code %in% cob$LSOA11CD,])
+points(crmgeo,col='GREEN')
+
+crmgeo2 <- merge(crmgeo,cob[,c(1:2)], by.x = 'LSOAcode', by.y = 'LSOA11CD')
+
+names(crmgeo2@data)[names(crmgeo2@data)=='Country of Birth: All categories: Country of birth; measures: Value'] <- 'totalZonePop'
+
+saveRDS(crmgeo2,'local/databackups/CrimeSouthYorkshire_w_LSOAs_nTotalPop.rds')
+
+#~~~~~~~~~~~
+crm_df <- data.frame(crmgeo2)
+
+#Count of crime per zone. Want to look at three versions:
+#All crimes
+#Breakdown by type
+#Remove antisocial behaviour, sum all others
+
+allCrimesPerZonePerPop <- crm_df %>% 
+  group_by(LSOAcode) %>% 
+  summarise(count = n(), totalCrimesPer1000People = (n()/max(totalZonePop))*1000)#max totalzonepop just provides single value. Same for each zone.
+
+crimesByTypePerZonePerPop <- crm_df %>% 
+  group_by(LSOAcode,Crime.type) %>% 
+  summarise(crimesPer1000People = (n()/max(totalZonePop))*1000)
+
+#remove NAs
+crimesByTypePerZonePerPop <- crimesByTypePerZonePerPop[!is.na(crimesByTypePerZonePerPop$crimesPer1000People),]
+
+crimesByTypeLong <- spread(crimesByTypePerZonePerPop,Crime.type,crimesPer1000People)
+
+pairs(crimesByTypeLong[,c(2:4)])
+pairs(crimesByTypeLong[,c(2,6:7)])
+pairs(crimesByTypeLong[,c(2,8:9)])
+pairs(crimesByTypeLong[,c(2,10:11)])
+pairs(crimesByTypeLong[,c(2,12)])
+
+corz <- cor(crimesByTypeLong[,c(2:12)],use='complete.obs') %>% data.frame
+
+eigen(corz)
+
+#Do column sums
+crimesByTypeLong$allCrimePer1000Pop <- rowSums(crimesByTypeLong[,c(2:12)],na.rm = T)
+crimesByTypeLong$allCrimePer1000Pop_ExclASB <- rowSums(crimesByTypeLong[,c(3:12)],na.rm = T)
+
+
+
+
+
+
+
+
+
 
 
 

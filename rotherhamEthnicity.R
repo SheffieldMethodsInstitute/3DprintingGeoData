@@ -1,89 +1,94 @@
-##  Carbon copy of Dan's script transplanted to Rotherham
-
-#Tweaked r2stl code
+##  Rotherham: Ethnicity pop 3D plots----
+##  >list of relevant file paths. All map data are contained in data/boundarydata so just need their file names. Change to suit
 source('r2stl/R/r2stl_geo.r')
+oas.path<-'rotherham_oa_2011_noproj'
+lsoas.path<-'rotherham_lsoa_2011_noproj'
+roads.path<-'rotherham_mainRoadsBuffer25m'
+data.tab <- read_csv('data/eth lsoa msoa.csv') #table with the statistics of interest
+roth.id<-grep('Rotherham',data.tab$LSOA11NM)
+data.tab<-data.tab[roth.id,]
 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#Rotherham 1: non-white pop, OAs----
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+##  >load in library and data: maps; roads and tables----
 ##  Saving projection system and reprojecting the r.ham shp file
 osgb36<-("+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +datum=OSGB36 +units=m +no_defs +ellps=airy +towgs84=446.448,-125.157,542.060,0.1502,0.2470,0.8421,-20.4894")
 
-oas<-readOGR(dsn='data/boundarydata',layer='rotherham_oa_2011_noproj',p4s=osgb36)
+##  Read in oas and lsoa map files
+oas<-readOGR(dsn='data/boundarydata',layer=oas.path,p4s=osgb36)
+lsoas<-readOGR(dsn='data/boundarydata',layer=lsoas.path,p4s=osgb36)
 
-#Get eth data
-eth <- read_csv('data/eth lsoa msoa.csv')
-#tidy to make easier to read
+##  Output: data.tab: table of stats and lsoa/oa; oas: polygon file for oas; lsoas; polygon file for lsoas; 
 
-#Subset to Rotherham
-roth.id<-grep('Rotherham',eth$LSOA11NM)
-eth<-eth[roth.id,]
 
-#merge with geography - keep only the column we want for now.
-eth_geo <- merge(oas[,c('oa11cd')], eth[,c('OA11CD','nonwhiteZoneProp.oa','nonwhiteZoneProp.lsoa','nonwhiteZoneProp.msoa','pstaniZoneProp.oa','pstaniZoneProp.lsoa','pstaniZoneProp.msoa')], by.x = 'oa11cd', by.y = 'OA11CD')
-eth_geo
+##  >Merge map files with datatables====
+data_geo <- merge(oas[,c('oa11cd')], data.tab, by.x = 'oa11cd', by.y = 'OA11CD')
+unique.lsoa<-match(lsoas$lsoa11cd,data.tab$LSOA11CD)
+data_geo_lsoa <- merge(lsoas[,c('lsoa11cd')], data.tab[unique.lsoa,], by.x = 'lsoa11cd', by.y = 'LSOA11CD')
+##  Building a relief layer (which is basically roads and etc)====
+##  Basically a relief layer is the layer upon which we indent onto the rest of the data 
 
-### Right so now to sort of use the r2stl stuff
+#Start with a rasterised version of our main file
+r <- rasterToFitShapefileExtent(data_geo_lsoa,50)
 
-##  Non-whites
+##  Load in the roads
+roads.path<-'rotherham_mainRoadsBuffer25m'
+mway.path<-'rotherham_MotorwayBuffer60m'
+##  load in the roads file
+roads <- readOGR('data/boundarydata',roads.path)
+mway <- readOGR('data/boundarydata',mway.path)
+
+##  Rasterise the roads, the relief variable in roads, and r (the rasterised geo file)
+roads$relief<--1
+roadsreliefRaster <- rasterize(roads,r,roads$relief)
+roadsreliefRaster[is.na(roadsreliefRaster)] <- 0#
+
+##  Rasterise the motorways 
+#Currently a single polygon with no attributes. Add one with the value we want to use
+mway$relief <- -2
+mwayreliefRaster <- rasterize(mway,r,mway$relief)
+mwayreliefRaster[is.na(mwayreliefRaster)] <- 0#
+
+
+reliefRaster <- min(reliefRaster,mwayReliefRaster)
+plot(reliefRaster)
+
+##  >Note: North arrow rasterising routine----
+northArrow <- raster('images/northArrow1.tif')
+values(northArrow) <- ifelse(values(northArrow) == 0,-1,0)
+
+sm <- aggregate(northArrow, fact=10)
+proj4string(sm) <- proj4string(roadsreliefRaster)
+
+#Chosen coordinates for corner of image
+newx <- 439903.630
+newy <- 379484.665
+#Multiplication of image size
+xmax <- extent(sm)[2] * 6
+ymax <- extent(sm)[4] * 6
+
+extent(sm) <- c(xmin <- newx, xmax <- newx + xmax, ymin <- newy, ymax <- newy + ymax)
+extent(sm)
+
+#Getting the north arrow onto a blank layer
+sm2 <- projectRaster(sm,roadsreliefRaster)
+sm2 <- 1-sm2
+
+values(sm2)[is.na(values(sm2))]<-min(values(sm2),na.rm=T)
+values(sm2)<-ifelse(values(sm2)>1.9,-2,0)
+
+reliefRaster <- sm2 + min(roadsreliefRaster,mwayreliefRaster, na.rm = T)
+reliefRaster ##need positve values
+values(reliefRaster)<-values(reliefRaster)+3
+plot(reliefRaster)
+
+##  >test plots----
 r2stl_geo(
-  eth_geo,
-  'nonwhiteZoneProp.oa',
-  gridResolution=50,
-  keepXYratio = T,
-  zRatio = 0.25,
-  show.persp = F,
-  filename= 'stl/nonwhiteRotherham.stl'
-)
-
-r2stl_geo(
-  eth_geo,
+  data_geo_lsoa,
   'nonwhiteZoneProp.lsoa',
   gridResolution=50,
   keepXYratio = T,
   zRatio = 0.25,
   show.persp = F,
-  filename= 'stl/nonwhiteRotherham_lsoa.stl'
-)
-
-r2stl_geo(
-  eth_geo,
-  'nonwhiteZoneProp.msoa',
-  gridResolution=50,
-  keepXYratio = T,
-  zRatio = 0.25,
-  show.persp = F,
-  filename= 'stl/nonwhiteRotherham_msoa.stl'
-)
-
-##  Pakistani pop
-r2stl_geo(
-  eth_geo,
-  'pstaniZoneProp.oa',
-  gridResolution=50,
-  keepXYratio = T,
-  zRatio = 0.25,
-  show.persp = F,
-  filename= 'stl/pstaniRotherham.stl'
-)
-
-r2stl_geo(
-  eth_geo,
-  'pstaniZoneProp.lsoa',
-  gridResolution=50,
-  keepXYratio = T,
-  zRatio = 0.25,
-  show.persp = F,
-  filename= 'stl/pstaniRotherham_lsoa.stl'
-)
-
-r2stl_geo(
-  eth_geo,
-  'pstaniZoneProp.msoa',
-  gridResolution=50,
-  keepXYratio = T,
-  zRatio = 0.25,
-  show.persp = F,
-  filename= 'stl/pstaniRotherham_msoa.stl'
+  filename= 'stl/roth_non white noint.stl',
+  reliefLayer = reliefRaster,
+  interpolate = 0
 )

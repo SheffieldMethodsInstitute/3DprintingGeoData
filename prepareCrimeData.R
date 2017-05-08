@@ -112,8 +112,10 @@ eigen(corz)
 crimesByTypeLong$allCrimePer1000Pop <- rowSums(crimesByTypeLong[,c(2:12)],na.rm = T)
 crimesByTypeLong$allCrimePer1000Pop_ExclASB <- rowSums(crimesByTypeLong[,c(3:12)],na.rm = T)
 
+pairs(crimesByTypeLong[,c(2,13,14)])
 
-
+#Done. save.
+write_csv(crimesByTypeLong,'data/Crimes_SouthYorkshire_byLSOA.csv')
 
 
 

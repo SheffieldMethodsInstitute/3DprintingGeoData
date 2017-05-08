@@ -47,10 +47,6 @@ mway$relief <- -2
 mwayreliefRaster <- rasterize(mway,r,mway$relief)
 mwayreliefRaster[is.na(mwayreliefRaster)] <- 0#
 
-
-reliefRaster <- min(reliefRaster,mwayReliefRaster)
-plot(reliefRaster)
-
 ##  >Note: North arrow rasterising routine----
 northArrow <- raster('images/northArrow1.tif')
 values(northArrow) <- ifelse(values(northArrow) == 0,-1,0)
